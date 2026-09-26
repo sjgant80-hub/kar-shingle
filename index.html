@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>kar-shingle — Deterministic Near-Duplicate Verifier</title>
+<style>
+  :root{
+    --bg:#0a0c11;
+    --panel:#12151d;
+    --panel-2:#171b26;
+    --border:#242a3a;
+    --border-soft:#1b202c;
+    --text:#e7eaf2;
+    --muted:#8b93a9;
+    --muted-2:#5f6a84;
+    --accent:#6fd6ff;
+    --accent-dim:#2a4a5c;
+    --good:#3ddc84;
+    --good-dim:#173323;
+    --warn:#f5b942;
+    --warn-dim:#3a3018;
+    --bad:#ff6b6b;
+    --bad-dim:#3a1f22;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --radius: 12px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    padding:24px 16px 64px;
+  }
+  .wrap{max-width:960px;margin:0 auto;}
+  header.top{margin-bottom:22px;}
+  .brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .brand .mark{
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--accent);
+    border:1px solid var(--accent-dim);
+    background:rgba(111,214,255,0.06);
+    padding:2px 8px;
+    border-radius:999px;
+    letter-spacing:0.02em;
+  }
+  h1{font-size:26px;margin:10px 0 6px;letter-spacing:-0.01em;}
+  .tagline{color:var(--muted);font-size:15px;margin:0 0 14px;}
+  .intro{color:var(--muted);font-size:14.5px;max-width:74ch;margin:0 0 4px;}
+  .intro strong{color:var(--text);}
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px 18px;
+    margin-top:16px;
+  }
+  .card h2{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--muted);
+    margin:0 0 14px;
+    display:flex;align-items:center;gap:8px;
+  }
+
+  /* self-test */
+  #selftest .status-line{
+    display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;margin-bottom:10px;
+  }
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--muted-2);flex:none;}
+  .dot.pending{background:var(--warn);box-shadow:0 0 0 4px var(--warn-dim);animation:pulse 1.2s infinite;}
+  .dot.pass{background:var(--good);box-shadow:0 0 0 4px var(--good-dim);}
+  .dot.fail{background:var(--bad);box-shadow:0 0 0 4px var(--bad-dim);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+  .subtests{display:grid;gap:6px;font-family:var(--mono);font-size:12.5px;}
+  .subtest-row{display:flex;justify-content:space-between;gap:10px;padding:6px 10px;border:1px solid var(--border-soft);border-radius:8px;background:var(--panel-2);}
+  .subtest-row .r{color:var(--muted);}
+  .tag{font-weight:700;padding:1px 7px;border-radius:6px;font-size:11px;letter-spacing:0.03em;}
+  .tag.pass{color:var(--good);background:var(--good-dim);}
+  .tag.fail{color:var(--bad);background:var(--bad-dim);}
+
+  /* inputs */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:720px){.grid2{grid-template-columns:1fr;}}
+  label.field-label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:600;}
+  textarea{
+    width:100%;
+    min-height:150px;
+    resize:vertical;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:10px;
+    padding:12px;
+    font-family:var(--sans);
+    font-size:13.5px;
+    line-height:1.5;
+  }
+  textarea:focus{outline:none;border-color:var(--accent-dim);}
+  .meta-row{display:flex;justify-content:space-between;color:var(--muted-2);font-size:11.5px;margin-top:5px;font-family:var(--mono);}
+
+  .controls-row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:16px;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  select, input[type=number]{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:8px;
+    padding:8px 10px;
+    font-family:var(--mono);
+    font-size:13px;
+    min-width:120px;
+  }
+  select:focus, input:focus{outline:none;border-color:var(--accent-dim);}
+
+  button{
+    font-family:var(--sans);
+    font-size:13.5px;
+    font-weight:600;
+    border-radius:9px;
+    border:1px solid var(--border);
+    background:var(--panel-2);
+    color:var(--text);
+    padding:9px 16px;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  button:hover{border-color:var(--accent-dim);}
+  button:active{transform:translateY(1px);}
+  button.primary{
+    background:linear-gradient(180deg, rgba(111,214,255,0.16), rgba(111,214,255,0.07));
+    border-color:var(--accent-dim);
+    color:var(--accent);
+  }
+  button.primary:hover{border-color:var(--accent);}
+  button:disabled{opacity:0.5;cursor:not-allowed;}
+  button.small{padding:5px 10px;font-size:12px;}
+
+  /* results */
+  .verdict-badge{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:15px;font-weight:800;letter-spacing:0.01em;
+    padding:8px 14px;border-radius:10px;
+    margin-bottom:14px;
+  }
+  .verdict-IDENTICAL{color:#bfe9ff;background:rgba(111,214,255,0.12);border:1px solid var(--accent-dim);}
+  .verdict-NEAR-DUPLICATE{color:var(--warn);background:var(--warn-dim);border:1px solid #5a4a1e;}
+  .verdict-OVERLAPPING{color:#d8b4fe;background:#2a2040;border:1px solid #4a3a68;}
+  .verdict-DISTINCT{color:var(--good);background:var(--good-dim);border:1px solid #1e4a30;}
+  .verdict-INSUFFICIENT-DATA{color:var(--muted);background:var(--panel-2);border:1px solid var(--border);}
+
+  .kv{display:grid;grid-template-columns:180px 1fr;gap:6px 14px;font-size:13px;margin-bottom:6px;}
+  @media (max-width:600px){.kv{grid-template-columns:1fr;}}
+  .kv .k{color:var(--muted);}
+  .kv .v{font-family:var(--mono);word-break:break-all;color:var(--text);}
+
+  .hashblock{
+    font-family:var(--mono);font-size:12px;word-break:break-all;
+    background:var(--panel-2);border:1px solid var(--border-soft);border-radius:8px;padding:10px 12px;
+    margin-top:4px;color:var(--accent);
+  }
+  .copy-row{display:flex;gap:8px;align-items:center;margin-top:6px;}
+  .note{color:var(--muted-2);font-size:12px;margin-top:4px;}
+
+  details{margin-top:14px;border-top:1px solid var(--border-soft);padding-top:12px;}
+  summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);}
+  summary:hover{color:var(--text);}
+  .spec{font-size:13px;color:var(--muted);margin-top:12px;}
+  .spec code, .spec .code-block{font-family:var(--mono);font-size:12.5px;color:var(--accent);}
+  .code-block{
+    display:block;background:var(--panel-2);border:1px solid var(--border-soft);
+    border-radius:8px;padding:12px;margin:8px 0;white-space:pre-wrap;color:#c9d6e8;
+  }
+  ol.spec-list{padding-left:20px;}
+  ol.spec-list li{margin-bottom:8px;}
+
+  ul.limits{padding-left:20px;color:var(--muted);font-size:13.5px;}
+  ul.limits li{margin-bottom:7px;}
+  ul.limits b{color:var(--text);}
+
+  footer{margin-top:28px;color:var(--muted-2);font-size:12px;text-align:center;}
+  footer a{color:var(--muted);}
+
+  .flexbetween{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+  .pill{font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--border-soft);padding:3px 8px;border-radius:999px;}
+  .warnbox{
+    border:1px solid #5a4a1e;background:var(--warn-dim);color:var(--warn);
+    border-radius:8px;padding:10px 12px;font-size:12.5px;margin-top:10px;
+  }
+  textarea.receipt-box{min-height:150px;font-family:var(--mono);font-size:11.5px;color:var(--accent);}
+  .match-yes{color:var(--good);font-weight:700;}
+  .match-no{color:var(--bad);font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <span class="mark">kar-shingle</span>
+      <span class="pill">v1 · offline · no LLM judge</span>
+    </div>
+    <h1>Deterministic Near-Duplicate Verifier</h1>
+    <p class="tagline">Word-shingled MinHash you can recompute by hand — not an AI opinion about "how similar" two texts are.</p>
+    <p class="intro">
+      Paste two documents. This page splits each into overlapping <strong>K-word shingles</strong>,
+      hashes them with SHA-256, and estimates their <strong>Jaccard similarity</strong> using a fixed,
+      published <strong>MinHash</strong> permutation scheme. The verdict — <strong>IDENTICAL / NEAR-DUPLICATE /
+      OVERLAPPING / DISTINCT</strong> — and the receipt hash beneath it are fully re-derivable: anyone with the
+      same two texts and the algorithm spec below gets the exact same bytes back. No model reads your text
+      and no server ever sees it — everything runs in this tab.
+    </p>
+  </header>
+
+  <section class="card" id="selftest">
+    <h2>Self-test — runs on load</h2>
+    <div class="status-line">
+      <span class="dot pending" id="st-dot"></span>
+      <span id="st-headline">Running self-test…</span>
+    </div>
+    <div class="subtests" id="st-rows"></div>
+  </section>
+
+  <section class="card">
+    <h2>Documents</h2>
+    <div class="controls-row" style="margin-top:0;margin-bottom:14px;">
+      <div class="field">
+        <label class="field-label">Load example pair</label>
+        <select id="sample-select">
+          <option value="">— choose an example —</option>
+          <option value="identical">Identical resubmission</option>
+          <option value="append">Disguised duplicate (sentence appended)</option>
+          <option value="edit">Disguised duplicate (one word swapped)</option>
+          <option value="distinct">Unrelated document</option>
+        </select>
+      </div>
+      <button id="btn-clear" type="button">Clear both</button>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <label class="field-label" for="doc-a">Document A</label>
+        <textarea id="doc-a" placeholder="Paste or type the first document…" spellcheck="false"></textarea>
+        <div class="meta-row"><span id="wc-a">0 words</span><span id="sc-a-preview"></span></div>
+      </div>
+      <div>
+        <label class="field-label" for="doc-b">Document B</label>
+        <textarea id="doc-b" placeholder="Paste or type the second document…" spellcheck="false"></textarea>
+        <div class="meta-row"><span id="wc-b">0 words</span><span id="sc-b-preview"></span></div>
+      </div>
+    </div>
+
+    <div class="controls-row">
+      <div class="field">
+        <label class="field-label" for="k-input">Shingle size K (words)</label>
+        <input type="number" id="k-input" min="2" max="10" value="5">
+      </div>
+      <div class="field">
+        <label class="field-label" for="n-input">Hash functions N</label>
+        <select id="n-input">
+          <option value="16">16 (coarse)</option>
+          <option value="32">32</option>
+          <option value="64" selected>64 (default)</option>
+          <option value="128">128</option>
+          <option value="256">256 (precise)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">&nbsp;</label>
+        <button class="primary" id="btn-compute" type="button">Compute verdict</button>
+      </div>
+    </div>
+    <div class="warnbox" id="len-warn" style="display:none;"></div>
+  </section>
+
+  <section class="card" id="results-card" style="display:none;">
+    <h2>Result</h2>
+    <div id="verdict-wrap"></div>
+    <div class="kv" id="kv-main"></div>
+
+    <div class="copy-row">
+      <span class="k" style="color:var(--muted);font-size:12px;">Receipt hash (SHA-256 of the canonical result — excludes wall-clock time):</span>
+    </div>
+    <div class="hashblock" id="receipt-hash">—</div>
+    <div class="copy-row">
+      <button class="small" id="btn-copy-hash" type="button">Copy hash</button>
+      <button class="small" id="btn-copy-receipt" type="button">Copy full receipt JSON</button>
+      <span class="note" id="computed-at"></span>
+    </div>
+
+    <details>
+      <summary>Full receipt JSON</summary>
+      <textarea class="receipt-box" id="receipt-json" readonly></textarea>
+    </details>
+
+    <details id="verify-details">
+      <summary>Verify a receipt someone sent you (independent recompute)</summary>
+      <p class="spec">
+        Paste a receipt JSON you received, alongside the two source texts above (in Document A / B, with the
+        same K and N the receipt claims). Click "Check receipt" — this page recomputes everything from
+        scratch and compares field by field. It never trusts the pasted JSON's own claims.
+      </p>
+      <textarea class="receipt-box" id="verify-input" placeholder="Paste a receipt JSON here…" style="min-height:110px;"></textarea>
+      <div class="copy-row">
+        <button class="small" id="btn-verify" type="button">Check receipt against current Documents A/B</button>
+      </div>
+      <div id="verify-result" style="margin-top:10px;"></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>Algorithm spec — how to recompute this yourself</h2>
+    <div class="spec">
+      <ol class="spec-list">
+        <li><b>Normalize:</b> lowercase the text, collapse all whitespace runs to a single space, trim the ends.</li>
+        <li><b>Shingle:</b> split the normalized text on spaces into words; for shingle size <code>K</code>,
+          take every contiguous run of <code>K</code> words and join them with a single space. Deduplicate
+          (a document's shingle set is a <em>set</em>, not a multiset). If the document has fewer than
+          <code>K</code> words, it has zero shingles.</li>
+        <li><b>Base hash:</b> for each unique shingle <code>s</code>, compute <code>SHA-256(s)</code> (UTF-8
+          bytes), take the first 8 hex characters, and read them as an unsigned 32-bit integer
+          <code>h0(s)</code>.</li>
+        <li><b>Permutations:</b> for <code>i = 0 … N-1</code>, derive fixed constants once —
+          <code>a_i</code> = first 32 bits of <code>SHA-256("kar-shingle-perm-a-" + i)</code>, forced odd
+          (<code>a_i | 1</code>); <code>b_i</code> = first 32 bits of <code>SHA-256("kar-shingle-perm-b-" + i)</code>.
+          These sixteen-to-256 constants are the same for every user, every run, forever — they are not
+          random per session.</li>
+        <li><b>Per-permutation hash:</b> <code>h_i(s) = (a_i · h0(s) + b_i) mod 2^32</code>, computed with
+          64-bit-safe (BigInt) arithmetic to avoid overflow.</li>
+        <li><b>MinHash signature:</b> signature slot <code>i</code> of a document = <code>min</code> over all
+          its shingles <code>s</code> of <code>h_i(s)</code>. A document with zero shingles has no signature
+          ("insufficient data").</li>
+        <li><b>Similarity:</b> estimated Jaccard similarity of A and B = (number of slots where
+          <code>sigA[i] === sigB[i]</code>) / <code>N</code>. This is a standard unbiased MinHash estimator;
+          its standard error is roughly <code>sqrt(p(1-p)/N)</code>, so more hash functions narrow the
+          estimate at the cost of more computation.</li>
+        <li><b>Verdict:</b> if <code>SHA-256(normalize(A)) === SHA-256(normalize(B))</code> → <b>IDENTICAL</b>
+          (similarity is trivially 1.0). Else if similarity ≥ 0.75 → <b>NEAR-DUPLICATE</b>. Else if
+          similarity ≥ 0.35 → <b>OVERLAPPING</b>. Else → <b>DISTINCT</b>. If either document has zero
+          shingles → <b>INSUFFICIENT-DATA</b>.</li>
+        <li><b>Receipt:</b> a canonical (sorted-key, whitespace-free) JSON object containing the algorithm id,
+          K, N, and for each document its shingle count, normalized-text SHA-256, and signature SHA-256
+          (SHA-256 of the signature's 32-bit words as 8-hex-char blocks, concatenated) plus the similarity
+          match count and verdict. The receipt hash is <code>SHA-256</code> of that canonical string. Wall-clock
+          time is shown for humans but deliberately excluded from the hash.</li>
+      </ol>
+      <p class="spec">This is the entire algorithm — there is nothing else in the page that touches your text.
+        View source to check; there are no network calls anywhere in this document.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Honest limits</h2>
+    <ul class="limits">
+      <li><b>It is an estimate, not a proof of meaning.</b> MinHash measures shared word-sequences, not
+        semantics. Two documents can share almost no 5-word shingles yet mean the same thing (heavy
+        paraphrase, translation), and can share many shingles while meaning something different
+        (boilerplate, quoted headers, templated text).</li>
+      <li><b>Word-level, whitespace-tokenized.</b> It assumes space-separated words. It has not been tuned
+        for languages without whitespace word boundaries (e.g. Chinese, Japanese) — expect degraded results
+        there.</li>
+      <li><b>Normalization is minimal on purpose.</b> Only case-folding and whitespace collapsing — no
+        stemming, no punctuation stripping, no stopword removal — so the recompute steps above stay short
+        and unambiguous. Punctuation and word order still count.</li>
+      <li><b>The similarity score has sampling error.</b> At the default N=64 it is typically accurate to
+        within roughly ±0.06; raise N for a tighter estimate, at the cost of more SHA-256 calls in your
+        browser.</li>
+      <li><b>Not a plagiarism or copyright determination.</b> It tells you two texts share a lot of
+        contiguous word-sequences. What that means legally or editorially is a human judgment this tool
+        does not make.</li>
+      <li><b>Client-side only.</b> Very large pastes (this page truncates input past 200,000 characters, and
+        will say so) can make your browser tab busy for a few seconds while it hashes every shingle — nothing
+        is capped silently.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Built by Kar (karma-didy), resident agent of the FallForge estate — deterministic, recomputable, no LLM
+    judge. Part of the kar-* verifier family (citelock · veil · fairdraw · conform · glyphguard · warden ·
+    anchor · wisp · shingle).
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- core algorithm (kept 1:1 with the spec text above) ----------
+
+  const enc = new TextEncoder();
+
+  async function sha256Hex(str){
+    const buf = await crypto.subtle.digest('SHA-256', enc.encode(str));
+    const bytes = new Uint8Array(buf);
+    let out = '';
+    for (let i=0;i<bytes.length;i++) out += bytes[i].toString(16).padStart(2,'0');
+    return out;
+  }
+
+  function normalize(text){
+    return text.toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  function shingleSet(normText, k){
+    if (!normText) return [];
+    const words = normText.split(' ');
+    if (words.length < k) return [];
+    const seen = new Set();
+    for (let i=0;i<=words.length-k;i++){
+      seen.add(words.slice(i, i+k).join(' '));
+    }
+    return [...seen];
+  }
+
+  const MOD32 = 1n << 32n;
+  let permCache = new Map(); // N -> [{a,b}]
+
+  async function getPerms(N){
+    if (permCache.has(N)) return permCache.get(N);
+    const perms = new Array(N);
+    for (let i=0;i<N;i++){
+      const ah = await sha256Hex('kar-shingle-perm-a-'+i);
+      const bh = await sha256Hex('kar-shingle-perm-b-'+i);
+      const a = (BigInt('0x'+ah.slice(0,8)) | 1n);
+      const b = BigInt('0x'+bh.slice(0,8));
+      perms[i] = {a,b};
+    }
+    permCache.set(N, perms);
+    return perms;
+  }
+
+  // returns { shingleCount, normalized, normalizedSha256, sig (BigInt[] or null), signatureSha256 }
+  async function analyzeDoc(rawText, k, N){
+    const norm = normalize(rawText);
+    const normalizedSha256 = await sha256Hex(norm);
+    const shs = shingleSet(norm, k);
+    if (shs.length === 0){
+      return { shingleCount: 0, normalized: norm, normalizedSha256, sig: null, signatureSha256: null };
+    }
+    const baseHashes = new Array(shs.length);
+    for (let i=0;i<shs.length;i++){
+      const h = await sha256Hex(shs[i]);
+      baseHashes[i] = BigInt('0x'+h.slice(0,8));
+    }
+    const perms = await getPerms(N);
+    const sig = new Array(N);
+    for (let i=0;i<N;i++){
+      const {a,b} = perms[i];
+      let min = null;
+      for (let j=0;j<baseHashes.length;j++){
+        const v = (a * baseHashes[j] + b) % MOD32;
+        if (min === null || v < min) min = v;
+      }
+      sig[i] = min;
+    }
+    const sigHex = sig.map(v => v.toString(16).padStart(8,'0')).join('');
+    const signatureSha256 = await sha256Hex(sigHex);
+    return { shingleCount: shs.length, normalized: norm, normalizedSha256, sig, signatureSha256 };
+  }
+
+  function similarityOf(sigA, sigB){
+    if (!sigA || !sigB) return null;
+    let match = 0;
+    for (let i=0;i<sigA.length;i++) if (sigA[i] === sigB[i]) match++;
+    return { matches: match, total: sigA.length, ratio: match / sigA.length };
+  }
+
+  function verdictOf(docA, docB, sim){
+    if (docA.shingleCount === 0 || docB.shingleCount === 0) return 'INSUFFICIENT-DATA';
+    if (docA.normalizedSha256 === docB.normalizedSha256) return 'IDENTICAL';
+    const r = sim.ratio;
+    if (r >= 0.75) return 'NEAR-DUPLICATE';
+    if (r >= 0.35) return 'OVERLAPPING';
+    return 'DISTINCT';
+  }
+
+  function canonJSON(obj){
+    if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
+    if (Array.isArray(obj)) return '[' + obj.map(canonJSON).join(',') + ']';
+    const keys = Object.keys(obj).sort();
+    return '{' + keys.map(k => JSON.stringify(k) + ':' + canonJSON(obj[k])).join(',') + '}';
+  }
+
+  async function buildReceipt(k, N, docA, docB, sim, verdict){
+    const receipt = {
+      algorithm: 'kar-shingle-minhash-v1',
+      k, n: N,
+      docA: { shingleCount: docA.shingleCount, normalizedSha256: docA.normalizedSha256, signatureSha256: docA.signatureSha256 },
+      docB: { shingleCount: docB.shingleCount, normalizedSha256: docB.normalizedSha256, signatureSha256: docB.signatureSha256 },
+      similarityMatches: sim ? sim.matches : null,
+      similarityTotal: sim ? sim.total : null,
+      verdict
+    };
+    const canon = canonJSON(receipt);
+    const hash = await sha256Hex(canon);
+    return { receipt, canon, hash };
+  }
+
+  // ---------- self test ----------
+
+  const SELF = {
+    K: 5, N: 64,
+    A: "The quarterly steering committee reviewed the migration plan in detail and agreed that the pilot cohort would move to the new billing platform first, with the remaining regions following in staggered waves once the pilot had run cleanly for two full billing cycles without any reconciliation errors or customer complaints.",
+    get B(){ return this.A + " A follow-up review is scheduled for the end of the second cycle."; },
+    D: "The quarterly steering committee reviewed the migration plan in detail and agreed that the pilot cohort would shift to the new billing platform first, with the remaining regions following in staggered waves once the pilot had run cleanly for two full billing cycles without any reconciliation errors or customer complaints.",
+    C: "Sedimentary rock layers exposed along the canyon wall record millions of years of gradual deposition, with each distinct band reflecting a different era of climate, water flow, and mineral content that geologists can read like pages in a very slow, very patient book."
+  };
+
+  async function runSelfTest(){
+    const rows = [];
+    let allPass = true;
+
+    function addRow(label, pass, detail){
+      rows.push({label, pass, detail});
+      if (!pass) allPass = false;
+    }
+
+    try {
+      const k = SELF.K, N = SELF.N;
+      const a1 = await analyzeDoc(SELF.A, k, N);
+      const a2 = await analyzeDoc(SELF.A, k, N);
+      const b  = await analyzeDoc(SELF.B, k, N);
+      const c  = await analyzeDoc(SELF.C, k, N);
+      const d  = await analyzeDoc(SELF.D, k, N);
+
+      // 1. identical resubmission -> IDENTICAL, ratio exactly 1
+      const simAA = similarityOf(a1.sig, a2.sig);
+      const vAA = verdictOf(a1, a2, simAA);
+      addRow('Re-submission verifies as IDENTICAL (ratio=1.0)',
+        vAA === 'IDENTICAL' && simAA.ratio === 1,
+        'verdict=' + vAA + ' ratio=' + simAA.ratio);
+
+      // 2. disguised duplicate (sentence appended) -> caught as NEAR-DUPLICATE, not IDENTICAL
+      const simAB = similarityOf(a1.sig, b.sig);
+      const vAB = verdictOf(a1, b, simAB);
+      addRow('Padded duplicate is caught as NEAR-DUPLICATE (not IDENTICAL)',
+        vAB === 'NEAR-DUPLICATE',
+        'verdict=' + vAB + ' ratio=' + simAB.ratio.toFixed(3));
+
+      // 3. disguised duplicate (one word swapped) -> caught as NEAR-DUPLICATE
+      const simAD = similarityOf(a1.sig, d.sig);
+      const vAD = verdictOf(a1, d, simAD);
+      addRow('Word-swap duplicate is caught as NEAR-DUPLICATE',
+        vAD === 'NEAR-DUPLICATE',
+        'verdict=' + vAD + ' ratio=' + simAD.ratio.toFixed(3));
+
+      // 4. unrelated document -> DISTINCT, no false positive
+      const simAC = similarityOf(a1.sig, c.sig);
+      const vAC = verdictOf(a1, c, simAC);
+      addRow('Unrelated document is not falsely flagged (DISTINCT)',
+        vAC === 'DISTINCT',
+        'verdict=' + vAC + ' ratio=' + simAC.ratio.toFixed(3));
+
+      // 5. determinism: recomputing A's signature twice gives byte-identical signatureSha256
+      addRow('Recomputing the same document twice is byte-identical',
+        a1.signatureSha256 === a2.signatureSha256 && a1.normalizedSha256 === a2.normalizedSha256,
+        'sigHash match=' + (a1.signatureSha256 === a2.signatureSha256));
+
+      // 6. edge case: too-short document reports INSUFFICIENT-DATA, does not throw
+      const short = await analyzeDoc("too few words", k, N);
+      addRow('Under-length document reports INSUFFICIENT-DATA safely',
+        short.shingleCount === 0,
+        'shingleCount=' + short.shingleCount);
+
+    } catch (err){
+      addRow('Self-test threw an unexpected error', false, String(err && err.message || err));
+    }
+
+    return { pass: allPass, rows };
+  }
+
+  function renderSelfTest(result){
+    const dot = document.getElementById('st-dot');
+    const headline = document.getElementById('st-headline');
+    const rowsEl = document.getElementById('st-rows');
+    dot.classList.remove('pending');
+    dot.classList.add(result.pass ? 'pass' : 'fail');
+    headline.textContent = result.pass
+      ? 'PASS — all ' + result.rows.length + ' checks recomputed correctly'
+      : 'FAIL — see failing check below';
+    rowsEl.innerHTML = '';
+    result.rows.forEach(r => {
+      const div = document.createElement('div');
+      div.className = 'subtest-row';
+      div.innerHTML = '<span>' + escapeHtml(r.label) + '</span>' +
+        '<span class="r">' + escapeHtml(r.detail) + ' <span class="tag ' + (r.pass?'pass':'fail') + '">' + (r.pass?'PASS':'FAIL') + '</span></span>';
+      rowsEl.appendChild(div);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- UI wiring ----------
+
+  const docA = document.getElementById('doc-a');
+  const docB = document.getElementById('doc-b');
+  const wcA = document.getElementById('wc-a');
+  const wcB = document.getElementById('wc-b');
+  const kInput = document.getElementById('k-input');
+  const nInput = document.getElementById('n-input');
+  const btnCompute = document.getElementById('btn-compute');
+  const btnClear = document.getElementById('btn-clear');
+  const sampleSelect = document.getElementById('sample-select');
+  const resultsCard = document.getElementById('results-card');
+  const verdictWrap = document.getElementById('verdict-wrap');
+  const kvMain = document.getElementById('kv-main');
+  const receiptHashEl = document.getElementById('receipt-hash');
+  const receiptJsonEl = document.getElementById('receipt-json');
+  const computedAtEl = document.getElementById('computed-at');
+  const lenWarn = document.getElementById('len-warn');
+  const scAPreview = document.getElementById('sc-a-preview');
+  const scBPreview = document.getElementById('sc-b-preview');
+  const MAX_CHARS = 200000;
+
+  let lastReceiptBundle = null; // { receipt, canon, hash, k, N }
+
+  function wordCount(text){
+    const t = text.trim();
+    if (!t) return 0;
+    return t.split(/\s+/).length;
+  }
+
+  // synchronous shingle-count preview (no hashing yet — just the word-split step,
+  // so it can update on every keystroke without waiting on SHA-256)
+  function shingleCountPreview(text, k){
+    const norm = normalize(text);
+    return shingleSet(norm, k).length;
+  }
+
+  function updateCounts(){
+    wcA.textContent = wordCount(docA.value) + ' words';
+    wcB.textContent = wordCount(docB.value) + ' words';
+    const k = Math.max(2, Math.min(10, parseInt(kInput.value, 10) || 5));
+    scAPreview.textContent = docA.value.trim() ? '~' + shingleCountPreview(docA.value, k) + ' shingles at K=' + k : '';
+    scBPreview.textContent = docB.value.trim() ? '~' + shingleCountPreview(docB.value, k) + ' shingles at K=' + k : '';
+    const over = docA.value.length > MAX_CHARS || docB.value.length > MAX_CHARS;
+    lenWarn.style.display = over ? 'block' : 'none';
+    if (over) lenWarn.textContent = 'One document exceeds ' + MAX_CHARS.toLocaleString() + ' characters — it will be truncated to the first ' + MAX_CHARS.toLocaleString() + ' characters before hashing, so the result stays fast and still reproducible at that truncation point.';
+  }
+  docA.addEventListener('input', updateCounts);
+  docB.addEventListener('input', updateCounts);
+  kInput.addEventListener('input', updateCounts);
+
+  btnClear.addEventListener('click', () => {
+    docA.value = ''; docB.value = '';
+    updateCounts();
+    resultsCard.style.display = 'none';
+  });
+
+  sampleSelect.addEventListener('change', () => {
+    const v = sampleSelect.value;
+    if (!v) return;
+    docA.value = SELF.A;
+    if (v === 'identical') docB.value = SELF.A;
+    else if (v === 'append') docB.value = SELF.B;
+    else if (v === 'edit') docB.value = SELF.D;
+    else if (v === 'distinct') docB.value = SELF.C;
+    updateCounts();
+    resultsCard.style.display = 'none';
+  });
+
+  function clampText(t){
+    return t.length > MAX_CHARS ? t.slice(0, MAX_CHARS) : t;
+  }
+
+  async function compute(){
+    btnCompute.disabled = true;
+    const prevLabel = btnCompute.textContent;
+    btnCompute.textContent = 'Computing…';
+    try {
+      const k = Math.max(2, Math.min(10, parseInt(kInput.value, 10) || 5));
+      const N = Math.max(4, Math.min(256, parseInt(nInput.value, 10) || 64));
+      kInput.value = k;
+
+      const a = await analyzeDoc(clampText(docA.value), k, N);
+      const b = await analyzeDoc(clampText(docB.value), k, N);
+      const sim = similarityOf(a.sig, b.sig);
+      const verdict = verdictOf(a, b, sim);
+      const bundle = await buildReceipt(k, N, a, b, sim, verdict);
+      lastReceiptBundle = bundle;
+
+      renderResults({a, b, sim, verdict, bundle, k, N});
+    } catch (err){
+      resultsCard.style.display = 'block';
+      verdictWrap.innerHTML = '<div class="verdict-badge verdict-INSUFFICIENT-DATA">ERROR</div>';
+      kvMain.innerHTML = '<div class="kv"><div class="k">Detail</div><div class="v">' + escapeHtml(String(err && err.message || err)) + '</div></div>';
+      receiptHashEl.textContent = '—';
+      receiptJsonEl.value = '';
+    } finally {
+      btnCompute.disabled = false;
+      btnCompute.textContent = prevLabel;
+    }
+  }
+
+  function renderResults({a, b, sim, verdict, bundle, k, N}){
+    resultsCard.style.display = 'block';
+    verdictWrap.innerHTML = '<div class="verdict-badge verdict-' + verdict + '">' + verdict + '</div>';
+
+    const ratioText = sim ? (sim.ratio*100).toFixed(1) + '% (' + sim.matches + '/' + sim.total + ' signature slots)' : 'n/a';
+    const rows = [
+      ['Similarity (estimated Jaccard)', ratioText],
+      ['Shingle size K / hash count N', k + ' words / ' + N],
+      ['Document A shingles', String(a.shingleCount)],
+      ['Document B shingles', String(b.shingleCount)],
+      ['Doc A normalized SHA-256', a.normalizedSha256],
+      ['Doc B normalized SHA-256', b.normalizedSha256],
+      ['Doc A signature SHA-256', a.signatureSha256 || 'n/a (insufficient data)'],
+      ['Doc B signature SHA-256', b.signatureSha256 || 'n/a (insufficient data)']
+    ];
+    kvMain.innerHTML = rows.map(([kk,vv]) => '<div class="k">'+escapeHtml(kk)+'</div><div class="v">'+escapeHtml(vv)+'</div>').join('');
+
+    receiptHashEl.textContent = bundle.hash;
+    receiptJsonEl.value = JSON.stringify(bundle.receipt, null, 2);
+    computedAtEl.textContent = 'computed at ' + new Date().toISOString() + ' (not part of the hash)';
+  }
+
+  btnCompute.addEventListener('click', compute);
+
+  document.getElementById('btn-copy-hash').addEventListener('click', async () => {
+    if (!lastReceiptBundle) return;
+    try { await navigator.clipboard.writeText(lastReceiptBundle.hash); flashButton('btn-copy-hash','Copied'); }
+    catch(e){ /* clipboard may be unavailable; ignore silently */ }
+  });
+  document.getElementById('btn-copy-receipt').addEventListener('click', async () => {
+    if (!lastReceiptBundle) return;
+    try { await navigator.clipboard.writeText(JSON.stringify(lastReceiptBundle.receipt, null, 2)); flashButton('btn-copy-receipt','Copied'); }
+    catch(e){ /* ignore */ }
+  });
+
+  function flashButton(id, text){
+    const btn = document.getElementById(id);
+    const old = btn.textContent;
+    btn.textContent = text;
+    setTimeout(() => { btn.textContent = old; }, 1200);
+  }
+
+  // independent verification of a pasted receipt
+  document.getElementById('btn-verify').addEventListener('click', async () => {
+    const out = document.getElementById('verify-result');
+    let pasted;
+    try {
+      pasted = JSON.parse(document.getElementById('verify-input').value);
+    } catch(e){
+      out.innerHTML = '<div class="note" style="color:var(--bad);">Could not parse pasted JSON: ' + escapeHtml(e.message) + '</div>';
+      return;
+    }
+    try {
+      const k = Math.max(2, Math.min(10, parseInt(pasted.k, 10) || 5));
+      const N = Math.max(4, Math.min(256, parseInt(pasted.n, 10) || 64));
+      const a = await analyzeDoc(clampText(docA.value), k, N);
+      const b = await analyzeDoc(clampText(docB.value), k, N);
+      const sim = similarityOf(a.sig, b.sig);
+      const verdict = verdictOf(a, b, sim);
+      const bundle = await buildReceipt(k, N, a, b, sim, verdict);
+
+      const checks = [
+        ['algorithm', pasted.algorithm, bundle.receipt.algorithm],
+        ['k', pasted.k, bundle.receipt.k],
+        ['n', pasted.n, bundle.receipt.n],
+        ['docA.normalizedSha256', pasted.docA && pasted.docA.normalizedSha256, bundle.receipt.docA.normalizedSha256],
+        ['docA.signatureSha256', pasted.docA && pasted.docA.signatureSha256, bundle.receipt.docA.signatureSha256],
+        ['docB.normalizedSha256', pasted.docB && pasted.docB.normalizedSha256, bundle.receipt.docB.normalizedSha256],
+        ['docB.signatureSha256', pasted.docB && pasted.docB.signatureSha256, bundle.receipt.docB.signatureSha256],
+        ['verdict', pasted.verdict, bundle.receipt.verdict]
+      ];
+      let allMatch = true;
+      const rowsHtml = checks.map(([label, expected, actual]) => {
+        const match = expected === actual;
+        if (!match) allMatch = false;
+        return '<div class="subtest-row"><span>'+escapeHtml(label)+'</span><span class="r">'+
+          (match ? '<span class="match-yes">MATCH</span>' : '<span class="match-no">MISMATCH</span> (pasted='+escapeHtml(String(expected))+' recomputed='+escapeHtml(String(actual))+')')
+          +'</span></div>';
+      }).join('');
+      out.innerHTML = '<div class="status-line" style="margin-bottom:8px;"><span class="dot ' + (allMatch?'pass':'fail') + '"></span>' +
+        '<span>' + (allMatch ? 'Receipt independently reproduced — every field matches.' : 'Receipt does NOT match this recomputation.') + '</span></div>' +
+        '<div class="subtests">' + rowsHtml + '</div>';
+    } catch(e){
+      out.innerHTML = '<div class="note" style="color:var(--bad);">Could not verify: ' + escapeHtml(String(e && e.message || e)) + '</div>';
+    }
+  });
+
+  // ---------- boot ----------
+
+  updateCounts();
+
+  if (!window.crypto || !window.crypto.subtle){
+    renderSelfTest({ pass:false, rows:[{label:'crypto.subtle is unavailable in this browser/context', pass:false, detail:'SHA-256 cannot run — try a modern browser.'}] });
+  } else {
+    runSelfTest().then(renderSelfTest);
+  }
+
+})();
+</script>
+</body>
+</html>
