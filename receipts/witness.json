@@ -4,7 +4,7 @@
  "witness": {
   "tag": "v0.6",
   "commit": "f04fe3047e3d49b98c67713befd5b77182afa0d4",
-  "sha256": "eb0ed198306b596e58d62cab030cb839bd20402f53f78d5e52f345e963bebf64"
+  "sha256": "9918297aa5f8fc4e1d26d9e6b25226f56102fdc04f0c634155bfcba1c086ef48"
  },
  "kernel": "kernel.mjs",
  "kernelSha256": "b7e401a44178ea365124810c3642a7e261f6a34863277154dcdd48e7ba22d0d2",
@@ -32,6 +32,6 @@
  "capped": false,
  "timeoutMs": 60000,
  "clean": true,
- "seconds": 89,
+ "seconds": 209,
  "rerun": "git clone https://github.com/sjgant80-hub/witness && git -C witness checkout v0.6 && node gate.mjs --witness witness/witness.mjs"
 }
