@@ -1,0 +1,17 @@
+{
+  "name": "kar-shingle",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Deterministic near-duplicate detector, no LLM judge: word shingles and MinHash give a recomputable similarity verdict and receipt for two texts.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "agensi": { "selftest": true },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test kernel.test.mjs skill.test.mjs cli.test.mjs",
+    "zip": "node make-zip.mjs",
+    "gate": "node gate.mjs --witness ../witness/witness.mjs",
+    "verify-receipt": "node gate.mjs --verify"
+  }
+}

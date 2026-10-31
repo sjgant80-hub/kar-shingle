@@ -1,0 +1,14 @@
+[
+  {
+    "line": 66,
+    "mutation": "< → <=",
+    "snippet": "if (min === null || v < min) min = v;",
+    "reason": "Equivalent, and checked rather than argued. The mutant also reassigns min when v equals the current min, i.e. it replaces a BigInt with an equal BigInt, so the minimum it ends on is the same value. Verified by differential run: 200,000 random lists of 1-9 BigInt values drawn from 0-7 (many ties): the original and mutated loops end on the identical minimum every time."
+  },
+  {
+    "line": 192,
+    "mutation": "> → >=",
+    "snippet": "return t.length > MAX_CHARS ? t.slice(0, MAX_CHARS) : t;",
+    "reason": "Equivalent, and checked rather than argued. The mutant only differs when the text is exactly MAX_CHARS (200,000) characters long, where it returns t.slice(0, MAX_CHARS), which is the same string as t. Verified by differential run on texts of 0, 1, 199,999, 200,000, 200,001 and 400,000 characters: identical results."
+  }
+]

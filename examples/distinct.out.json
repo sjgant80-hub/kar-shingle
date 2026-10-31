@@ -1,0 +1,29 @@
+{
+  "exitCode": 0,
+  "report": {
+    "tool": "kar-shingle",
+    "algorithm": "kar-shingle-minhash-v1",
+    "verdict": "DISTINCT",
+    "similarity": {
+      "matches": 0,
+      "total": 64,
+      "ratio": 0
+    },
+    "k": 5,
+    "n": 64,
+    "a": {
+      "shingleCount": 46,
+      "normalizedSha256": "1124cf07acea6eaba812804c9bacca62680b2f6be66017a02584f8f41fd1f4ce",
+      "signatureSha256": "755ff78fc00effcfb71c5eb40df607f6fbdd805baa2226e17150c8ba1d24f4f1"
+    },
+    "b": {
+      "shingleCount": 39,
+      "normalizedSha256": "2352b371be045e007baaf1d0933815dad749f7150b95cd75f6efaca67a43bc48",
+      "signatureSha256": "d3735ac888358449430d5af6612faae6d0fe496c925a894704e97ebf8cfc93fa"
+    },
+    "receipt": {
+      "sha256": "0d8c9a6de5ee1a4c984d20df2417592b85f46ae8e6567b0445b75567db59d588",
+      "canonical": "{\"algorithm\":\"kar-shingle-minhash-v1\",\"docA\":{\"normalizedSha256\":\"1124cf07acea6eaba812804c9bacca62680b2f6be66017a02584f8f41fd1f4ce\",\"shingleCount\":46,\"signatureSha256\":\"755ff78fc00effcfb71c5eb40df607f6fbdd805baa2226e17150c8ba1d24f4f1\"},\"docB\":{\"normalizedSha256\":\"2352b371be045e007baaf1d0933815dad749f7150b95cd75f6efaca67a43bc48\",\"shingleCount\":39,\"signatureSha256\":\"d3735ac888358449430d5af6612faae6d0fe496c925a894704e97ebf8cfc93fa\"},\"k\":5,\"n\":64,\"similarityMatches\":0,\"similarityTotal\":64,\"verdict\":\"DISTINCT\"}"
+    }
+  }
+}
