@@ -232,6 +232,10 @@
 
 
 
+
+
+
+
   <section class="card" id="selftest">
     <h2>Self-test — runs on load</h2>
     <div class="status-line">
@@ -370,29 +374,34 @@
   </section>
 
   <section class="card">
-    <h2>Honest limits</h2>
+    <h2>Limits: what it does not check</h2>
     <ul class="limits">
       <li><b>It is an estimate, not a proof of meaning.</b> MinHash measures shared word-sequences, not
         semantics. Two documents can share almost no 5-word shingles yet mean the same thing (heavy
         paraphrase, translation), and can share many shingles while meaning something different
         (boilerplate, quoted headers, templated text).</li>
-      <li><b>Word-level, whitespace-tokenized.</b> It assumes space-separated words. It has not been tuned
-        for languages without whitespace word boundaries (e.g. Chinese, Japanese) — expect degraded results
-        there.</li>
-      <li><b>Normalization is minimal on purpose.</b> Only case-folding and whitespace collapsing — no
-        stemming, no punctuation stripping, no stopword removal — so the recompute steps above stay short
-        and unambiguous. Punctuation and word order still count.</li>
-      <li><b>The similarity score has sampling error.</b> At the default N=64 it is typically accurate to
-        within roughly ±0.06; raise N for a tighter estimate, at the cost of more SHA-256 calls in your
+      <li><b>Words are found by spaces.</b> It splits text into words wherever there is a space, tab or line
+        break, so languages written without spaces between words (Chinese, Japanese) give poor results.</li>
+      <li><b>Only capitals and spacing are evened out.</b> Before comparing, it lower-cases the text and turns
+        every run of spaces, tabs and line breaks into one space. Nothing else: punctuation, word endings
+        ("report" and "reports") and word order still count, which keeps the steps above short enough to
+        recompute by hand.</li>
+      <li><b>The score is an estimate.</b> It compares 64 sampled numbers, not every shingle, so it carries
+        a sampling error: one standard deviation is at most 0.0625 at 64 samples (the worst case, when about
+        half the shingles are shared). Raise N for a tighter estimate, at the cost of more hashing in your
         browser.</li>
       <li><b>Not a plagiarism or copyright determination.</b> It tells you two texts share a lot of
         contiguous word-sequences. What that means legally or editorially is a human judgment this tool
         does not make.</li>
-      <li><b>Client-side only.</b> Very large pastes (this page truncates input past 200,000 characters, and
-        will say so) can make your browser tab busy for a few seconds while it hashes every shingle — nothing
-        is capped silently.</li>
+      <li><b>It all runs in your browser.</b> Very large pastes can keep the tab busy for a few seconds while it
+        hashes every shingle. Past 200,000 characters it cuts the text to the first 200,000 and says so;
+        nothing is cut without telling you.</li>
     </ul>
   </section>
+
+  
+
+  
 
   
 
@@ -418,7 +427,7 @@
 </section>
 <section class="card ex" id="ex-words">
   <h2>Words on this page</h2>
-  <dl><dt><b>Shingle</b></dt><dd>A run of 5 words in a row. Two texts that share many shingles share passages, in order.</dd><dt><b>MinHash</b></dt><dd>A fixed-size summary of a text's shingles: 64 numbers. The share of the 64 that match between two texts estimates how much they share, and keeps long texts fast to compare.</dd><dt><b>The verdicts</b></dt><dd>IDENTICAL: the same text after case and spacing are evened out. NEAR-DUPLICATE: 75% or more of the 64 numbers match. OVERLAPPING: 35% or more. DISTINCT: less.</dd><dt><b>Kernel</b></dt><dd>The small piece of code that does the checking. Here it is the block inside this page, copied byte for byte into <code>kernel.mjs</code> and the script.</dd><dt><b>SHA-256 receipt</b></dt><dd>A 64-character fingerprint of the input and the verdict. Anyone with the same input gets the same fingerprint; change one character and it changes completely.</dd><dt><b>Deterministic</b></dt><dd>No AI model, no random numbers and no clock go into a verdict, so the same input gives the same verdict on any machine, every time.</dd><dt><b>No AI judge</b></dt><dd>No language model decides anything. The verdict comes from fixed rules you can read in <code>kernel.mjs</code>.</dd><dt><b>Mutation gate</b></dt><dd>A test of the tests. <a href="https://github.com/sjgant80-hub/witness">witness</a> makes small deliberate changes to the kernel, one at a time, and every change must make a test fail. A change no test notices has <i>survived</i>, which would mean the tests miss something. A change <i>reviewed as equivalent</i> cannot alter any result, and the reason is written down.</dd><dt><b>CI</b></dt><dd>Continuous integration: GitHub re-runs every test and the gate on its own computers on every change, and the runs are public.</dd><dt><b>In the browser</b></dt><dd>The page does the work on your computer. Nothing you paste is sent to a server.</dd><dt><b>MIT licence</b></dt><dd>An open-source licence: you may use, copy, change and build products with it, free, as long as the copyright notice stays.</dd><dt><b>Sourced figures</b></dt><dd>Every number in the cost case comes from a published source (the UK median wage and UK inflation, from the ONS), linked under the table.</dd></dl>
+  <dl><dt><b>Shingle</b></dt><dd>A run of 5 words in a row. Two texts that share many shingles share passages, in order.</dd><dt><b>MinHash</b></dt><dd>A fixed-size summary of a text's shingles: 64 numbers. The share of the 64 that match between two texts estimates how much they share, and keeps long texts fast to compare.</dd><dt><b>The verdicts</b></dt><dd>IDENTICAL: the same text after case and spacing are evened out. NEAR-DUPLICATE: 75% or more of the 64 numbers match. OVERLAPPING: 35% or more. DISTINCT: less.</dd><dt><b>Kernel</b></dt><dd>The small piece of code that decides every verdict; the rest of the page only shows what it decided. Here it is the block inside this page, copied byte for byte into <code>kernel.mjs</code> (the file the tests run) and into the script, so all three are the same code.</dd><dt><b>SHA-256 receipt</b></dt><dd>A 64-character fingerprint of the input and the verdict. Anyone with the same input gets the same fingerprint; change one character and it changes completely.</dd><dt><b>Deterministic</b></dt><dd>No AI model, no random numbers and no clock go into a verdict, so the same input gives the same verdict on any machine, every time.</dd><dt><b>No AI judge</b></dt><dd>No language model decides anything. The verdict comes from fixed rules you can read in <code>kernel.mjs</code>.</dd><dt><b>Mutation gate</b></dt><dd>A test of the tests. <a href="https://github.com/sjgant80-hub/witness">witness</a> makes small deliberate changes to the kernel, one at a time: for example it turns <code>if (count &gt; 0)</code> into <code>if (count &gt;= 0)</code>, then runs the tests. Every change must make a test fail. A change no test notices has <i>survived</i>: it would mean no test checks what happens at that exact point. A change <i>reviewed as equivalent</i> cannot alter any result (both versions give the same answer for every input), and the reason is written down and checked.</dd><dt><b>CI</b></dt><dd>Continuous integration: GitHub re-runs every test and the gate on its own computers on every change, and the runs are public.</dd><dt><b>In the browser</b></dt><dd>The page does the work on your computer. Nothing you paste is sent to a server.</dd><dt><b>MIT licence</b></dt><dd>An open-source licence: you may use, copy, change and build products with it, free, as long as the copyright notice stays.</dd><dt><b>Sourced figures</b></dt><dd>Every number in the cost case comes from a published source (the UK median wage and UK inflation, from the ONS), linked under the table.</dd></dl>
 </section>
 <section class="card ex" id="blueprint">
   <h2>Blueprint</h2>
